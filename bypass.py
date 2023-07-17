@@ -1,3 +1,5 @@
+# Author: Pari Malam
+
 import argparse
 import requests
 import sys
@@ -7,6 +9,10 @@ import random
 from concurrent.futures import ThreadPoolExecutor, wait
 from sys import stdout
 from colorama import Fore, Style
+
+def dirdar():
+    if not os.path.exists('Results'):
+        os.mkdir('Results')
 
 def banners():
     os.system('clear' if os.name == 'posix' else 'cls')
@@ -58,7 +64,6 @@ def load_http_methods(file_path):
     return http_methods
 
 def construct_endpoint_payloads(domain, path):
-    # ADD UR PAYLOAD HERE
     payloads = [
         domain + "/" + path.upper(),
         domain + "/" + path + "/",
@@ -93,6 +98,7 @@ def penetrate_endpoint(session, endpoint, method, header=None):
             print(f"{Fore.GREEN}{header} {endpoint} ({response.status_code} {response.reason}){Style.RESET_ALL}")
             try:
                 data = response.json()
+                dirdar()
                 with open(f"Results/{output_file}", "a") as file:
                     json.dump(data, file, indent=4)
                     file.write("\n")
@@ -100,6 +106,7 @@ def penetrate_endpoint(session, endpoint, method, header=None):
             except ValueError:
                 content = response.content.decode()
                 print(content)
+                dirdar()
                 with open(f"Results/{output_file}", "a") as file:
                     file.write(content)
                     file.write("\n")
